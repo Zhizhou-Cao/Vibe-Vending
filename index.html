@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多巴胺任务老虎机 Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --machine-color: #ff4757;
+            --machine-border: #2f3542;
+            --gold: #ffd700;
+            --bg-color: #1e272e;
+        }
+
+        body {
+            background: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 50%, #2f3542 0%, #000 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            user-select: none;
+        }
+
+        /* --- UI 层: 硬币计数 --- */
+        .ui-layer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 2px solid var(--gold);
+            color: var(--gold);
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 0 15px var(--gold);
+        }
+
+        /* --- 掉落硬币 --- */
+        .falling-coin {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle at 30% 30%, #ffd700, #b8860b);
+            border-radius: 50%;
+            border: 3px solid #DAA520;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            cursor: pointer;
+            z-index: 50;
+            animation: fall linear forwards;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #8B4513;
+        }
+        .falling-coin::after { content: '$'; }
+
+        @keyframes fall {
+            from { top: -60px; }
+            to { top: 110vh; }
+        }
+
+        /* --- 老虎机主体结构 --- */
+        .machine-container {
+            position: relative;
+            display: flex;
+            align-items: flex-end; /* 让拉杆底部对齐 */
+        }
+
+        .slot-machine {
+            background: var(--machine-color);
+            width: 380px;
+            height: 320px;
+            border-radius: 40px 40px 20px 20px;
+            border: 10px solid var(--machine-border);
+            padding: 40px;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 20px 50px rgba(0,0,0,0.8);
+            position: relative;
+            z-index: 10;
+        }
+
+        .display-window {
+            background: #fff;
+            border: 8px solid #333;
+            border-radius: 10px;
+            height: 160px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            background: linear-gradient(to bottom, #000 0%, #fff 20%, #fff 80%, #000 100%);
+            overflow: hidden;
+        }
+
+        .reel {
+            width: 90px;
+            height: 120px;
+            background: #f1f2f6;
+            border: 2px solid #ced6e0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3.5rem;
+        }
+        
+        /* 模糊动画 */
+        .reel.spinning span {
+            animation: blurScroll 0.15s infinite linear;
+            display: block;
+            filter: blur(4px);
+        }
+        @keyframes blurScroll {
+            0% { transform: translateY(-50%) scaleY(1.2); opacity: 0.7; }
+            100% { transform: translateY(50%) scaleY(1.2); opacity: 0.7; }
+        }
+
+        .status-light {
+            width: 20px;
+            height: 20px;
+            background: #333;
+            border-radius: 50%;
+            margin: 20px auto 0;
+            box-shadow: 0 0 5px #000;
+            transition: 0.3s;
+        }
+        .status-light.ready { background: #2ed573; box-shadow: 0 0 15px #2ed573; }
+        .status-light.error { background: #ff4757; box-shadow: 0 0 15px #ff4757; }
+
+        /* --- 霓虹牌匾 --- */
+        .neon-sign {
+            position: relative;
+            padding: 12px 28px;
+            color: #ffeaa7;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            border: 2px solid rgba(255, 234, 167, 0.5);
+            border-radius: 14px;
+            text-shadow:
+                0 0 6px #ffeaa7,
+                0 0 12px #ff6b81,
+                0 0 20px #ff6b81,
+                0 0 28px #ff4757;
+            box-shadow:
+                0 0 12px rgba(255, 234, 167, 0.35),
+                0 0 30px rgba(255, 107, 129, 0.35),
+                inset 0 0 18px rgba(255, 234, 167, 0.08);
+            background: rgba(0,0,0,0.35);
+            backdrop-filter: blur(4px);
+            animation: neonPulse 2s ease-in-out infinite;
+        }
+        @keyframes neonPulse {
+            0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px #ff6b81); }
+            50% { opacity: 0.82; filter: drop-shadow(0 0 10px #ff4757); }
+        }
+
+        .cost-hint {
+            text-align: center;
+            color: white;
+            margin-top: 10px;
+            font-weight: bold;
+            text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+        }
+
+        /* --- 拉杆装置 --- */
+        .lever-base {
+            width: 30px;
+            height: 100px;
+            background: #57606f;
+            border: 4px solid #2f3542;
+            border-left: none;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 50px;
+            position: relative;
+        }
+
+        .lever-arm {
+            width: 15px;
+            height: 150px;
+            background: linear-gradient(to right, #ccc, #eee, #ccc);
+            position: absolute;
+            bottom: 40%;
+            left: 10px;
+            transform-origin: bottom center;
+            transform: rotate(0deg);
+            transition: transform 0.5s cubic-bezier(0.5, 0, 0.5, 1);
+            cursor: pointer;
+            z-index: 5;
+        }
+
+        .lever-knob {
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle at 30% 30%, #ff6b81, #c40b2a);
+            border-radius: 50%;
+            position: absolute;
+            top: -25px;
+            left: -17.5px;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.5);
+        }
+        
+        .lever-arm:hover .lever-knob {
+            filter: brightness(1.2);
+        }
+
+        /* 拉动动画类 */
+        .lever-arm.pulled {
+            transform: rotate(180deg); /* 向下拉动 */
+            transition: transform 0.3s ease-in;
+        }
+        .lever-arm.releasing {
+            transform: rotate(0deg); /* 弹回 */
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* --- 任务模态框 & 互动区域 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .game-container {
+            background: #f1f2f6;
+            width: 90%;
+            max-width: 500px;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255,255,255,0.2);
+        }
+
+        .game-header { font-size: 1.5rem; margin-bottom: 15px; color: #333; }
+        .game-content { margin-bottom: 20px; min-height: 200px; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        
+        .finish-btn {
+            background: #2ed573;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: none; /* 默认隐藏，任务完成显示 */
+        }
+        .finish-btn:hover { transform: scale(1.05); }
+        
+        #restartBtn:hover { transform: scale(1.05); }
+
+        /* --- 迷你游戏样式 --- */
+        /* 1. 拼图 */
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 2px;
+            background: #333;
+            padding: 5px;
+        }
+        .puzzle-piece {
+            width: 80px; height: 80px;
+            background-size: 240px 240px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .puzzle-piece:hover { opacity: 0.8; }
+        
+        /* 2. 计时器 */
+        .timer-circle {
+            width: 150px; height: 150px;
+            border-radius: 50%;
+            border: 10px solid #ddd;
+            border-top: 10px solid var(--machine-color);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 2rem;
+            animation: spinTimer 1s linear infinite;
+            animation-play-state: paused;
+        }
+        @keyframes spinTimer { 100% { transform: rotate(360deg); } }
+
+        /* 3. 记忆翻牌 */
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 60px);
+            gap: 10px;
+        }
+        .memory-card {
+            width: 60px; height: 60px;
+            background: #2f3542;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 0;
+            transition: transform 0.3s;
+        }
+        .memory-card.flipped {
+            background: #fff;
+            font-size: 1.5rem;
+            transform: rotateY(180deg);
+        }
+        .memory-card.matched {
+            background: #2ed573;
+            visibility: hidden;
+            opacity: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- UI -->
+    <div class="ui-layer">
+        <span>💰</span>
+        <span id="coinCount">0</span>
+    </div>
+
+    <!-- 霓虹牌匾（可修改文字） -->
+    <div class="neon-sign" id="neonSign">⚡️闪电补给站⚡️</div>
+
+    <!-- 游戏机主体 -->
+    <div class="machine-container">
+        <div class="slot-machine">
+            <div class="display-window">
+                <div class="reel" id="reel0"><span>🍒</span></div>
+                <div class="reel" id="reel1"><span>🍒</span></div>
+                <div class="reel" id="reel2"><span>🍒</span></div>
+            </div>
+            
+            <div class="status-light" id="statusLight"></div>
+            <div class="cost-hint">收集 3 枚硬币，摇动拉杆👉</div>
+        </div>
+
+        <!-- 拉杆 -->
+        <div class="lever-base">
+            <div class="lever-arm" id="leverArm" onclick="tryPullLever()">
+                <div class="lever-knob"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗/任务区 -->
+    <div class="modal-overlay" id="taskModal">
+        <div class="game-container">
+            <div class="game-header" id="gameTitle">任务标题</div>
+            <div class="game-content" id="gameContent">
+                <!-- 动态注入游戏/任务内容 -->
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px; flex-wrap: wrap;">
+                <button class="finish-btn" id="finishBtn" onclick="closeTask()">✅完成</button>
+                <button id="restartBtn" onclick="restartTask()" style="background: #ff6b81; border: none; padding: 10px 30px; border-radius: 10px; color: white; font-size: 1.2rem; cursor: pointer; transition: transform 0.2s;">🔄 重开</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 核心状态 ---
+        let coins = 0;
+        let isSpinning = false;
+        let isTaskActive = false;
+        let currentTask = null; // 保存当前任务，用于重开
+        let activeTimerInterval = null; // 保存当前活动的倒计时器
+        const COST_TO_PLAY = 3;
+
+        // --- DOM 元素 ---
+        const coinDisplay = document.getElementById('coinCount');
+        const statusLight = document.getElementById('statusLight');
+        const leverArm = document.getElementById('leverArm');
+        const reels = [document.getElementById('reel0'), document.getElementById('reel1'), document.getElementById('reel2')];
+        const taskModal = document.getElementById('taskModal');
+        const gameTitle = document.getElementById('gameTitle');
+        const gameContent = document.getElementById('gameContent');
+        const finishBtn = document.getElementById('finishBtn');
+
+        // --- 任务数据库 (保持8类，内容随机化) ---
+        const taskCategories = [
+            { id: 'puzzle', icon: '🧩', name: '碎片拼图' },
+            { id: 'memory', icon: '🃏', name: '记忆挑战' },
+            { id: 'breathe', icon: '🌿', name: '正念呼吸' },
+            { id: 'sport', icon: '🧘', name: '动感时刻' },
+            { id: 'read', icon: '📖', name: '灵感卡片' },
+            { id: 'music', icon: '🎵', name: '听觉SPA' },
+            { id: 'eye', icon: '👀', name: '护眼行动' },
+            { id: 'clean', icon: '🧹', name: '微观清理' }
+        ];
+
+        // 随机内容库 - 巨大的知识库
+        const contentLib = {
+            read: [
+                "心理学冷知识：拥抱超过20秒会释放催产素，让人感到更信任和安全。",
+                "每日斯多葛：我们无法控制发生的事，但能控制对它的反应。",
+                "你知道吗？章鱼有三个心脏，九个大脑，血液是蓝色的。",
+                "短诗：而在我心中，有一个永不沉没的夏天 —— 加缪",
+                "科学趣闻：蜜蜂的翅膀每秒可以扇动200次，但它们的翅膀太小，理论上飞不起来，但实际却能飞！",
+                "哲学思考：真正的自由不是做你想做的事，而是不做你不想做的事。",
+                "生物奇迹：水母没有大脑、心脏和骨骼，但已经在地球上存在了6.5亿年。",
+                "文学金句：'生活不是等待暴风雨过去，而是学会在雨中跳舞。'",
+                "历史冷知识：古罗马人用海绵代替卫生纸，而且还会重复使用。",
+                "数学之美：斐波那契数列在自然界中随处可见，从向日葵的种子排列到贝壳的螺旋。",
+                "心理学：'邓宁-克鲁格效应'告诉我们，越无知的人越自信。",
+                "天文学：如果太阳突然消失，地球要8分20秒后才会知道，因为光速有限。",
+                "文学：'人不是生来被打败的，一个人可以被毁灭，但不能被打败。' —— 海明威",
+                "科学：人类DNA如果拉直，长度可以往返月球6000次。",
+                "哲学：'未经审视的人生不值得过。' —— 苏格拉底",
+                "生物学：人类和香蕉共享50%的DNA。",
+                "心理学：'峰终定律'告诉我们，人们对体验的记忆主要取决于高峰和结束时的感受。",
+                "历史：古埃及法老图坦卡蒙的墓穴被发现时，里面还有3500年前的蜂蜜，仍然可以食用。",
+                "文学：'世界以痛吻我，要我报之以歌。' —— 泰戈尔",
+                "科学：章鱼可以改变自己的颜色和纹理，甚至模仿其他海洋生物。",
+                "心理学：'锚定效应'让我们在做决定时过度依赖第一印象。",
+                "天文学：木星的质量是太阳系其他所有行星质量总和的2.5倍。",
+                "文学：'生活就像一盒巧克力，你永远不知道下一颗是什么味道。'",
+                "生物学：鲨鱼已经存在了4亿年，比恐龙还早。",
+                "哲学：'我思故我在' —— 笛卡尔",
+                "科学：如果所有人类DNA首尾相连，可以往返太阳系100次。",
+                "心理学：'墨菲定律'：如果事情可能出错，它就会出错。",
+                "历史：古罗马的公共厕所是社交场所，人们会边聊天边上厕所。",
+                "文学：'时间不在于你拥有多少，而在于你怎样使用。'",
+                "科学：人类大脑每天产生约7万个想法。"
+            ],
+            sport: [
+                "站起来！做10次高抬腿。",
+                "找一面墙，做20秒的靠墙静蹲。",
+                "颈部放松：用头在空中画'米'字，重复3次。",
+                "做15个深蹲，感受腿部力量。",
+                "原地慢跑30秒，让心跳加速。",
+                "做10个俯卧撑（可以跪姿）。",
+                "拉伸：双手举过头顶，向左右各侧弯10秒。",
+                "做20个开合跳，激活全身。",
+                "平板支撑20秒，强化核心。",
+                "做10个弓步，左右腿各5次。",
+                "踮脚尖站立30秒，然后放松。",
+                "做15个卷腹，锻炼腹部。",
+                "手臂画大圈，前后各10次。",
+                "做10个臀桥，激活臀部肌肉。",
+                "原地踏步1分钟，保持节奏。",
+                "做20个侧平举，活动肩部。",
+                "单腿站立，每腿保持10秒平衡。",
+                "做10个波比跳（简化版也可以）。",
+                "拉伸大腿前侧，每腿保持15秒。",
+                "做15个仰卧起坐。",
+                "原地高抬腿30秒。",
+                "做10个侧踢，左右各5次。",
+                "做20个手臂前后摆动。",
+                "做10个深蹲跳。",
+                "拉伸背部：双手抱膝，保持15秒。",
+                "做15个侧卧抬腿，左右各做。",
+                "做10个登山者动作。",
+                "做20个手臂旋转，前后各10次。",
+                "做10个单腿深蹲（可以扶墙）。",
+                "全身拉伸：向上伸展，保持10秒。"
+            ],
+            music: [
+                {
+                    title: "爵士乐的起源",
+                    description: "爵士乐起源于20世纪初的美国新奥尔良，融合了非洲和欧洲的音乐元素，具有即兴演奏和独特的节奏特点。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=vmDDOFXSgAs"
+                },
+                {
+                    title: "古典音乐的优雅",
+                    description: "古典音乐是西方音乐传统的重要组成部分，从巴洛克、古典主义到浪漫主义，每个时期都有其独特的风格。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=jgpJVI3tDbY"
+                },
+                {
+                    title: "自然之声的治愈",
+                    description: "自然声音如雨声、鸟鸣、海浪等，具有天然的治愈效果。研究表明，自然声音能够降低压力、改善睡眠质量。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=jfKfPfyJRdk"
+                },
+                {
+                    title: "轻音乐的舒缓",
+                    description: "轻音乐以其柔和的旋律和舒缓的节奏著称，适合在工作、学习或休息时聆听，营造轻松愉悦的氛围。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=4xDzrJKXOOY"
+                },
+                {
+                    title: "电子音乐的现代感",
+                    description: "电子音乐是20世纪后期发展起来的音乐形式，利用电子乐器和数字技术创造独特的音效，代表现代音乐的创新精神。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=60ItHLz5WEA"
+                },
+                {
+                    title: "民谣的温暖",
+                    description: "民谣音乐以其简单、真挚的旋律和歌词打动人心。它往往讲述普通人的故事，表达对生活的感悟。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=NNAFaDtLm24"
+                },
+                {
+                    title: "冥想音乐的宁静",
+                    description: "冥想音乐专门设计用于帮助人们进入深度放松和冥想状态，使用低频、重复的旋律，引导听者进入内心的宁静空间。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=1ZYbU82GVz4"
+                },
+                {
+                    title: "钢琴独奏的纯净",
+                    description: "钢琴独奏以其纯净的音色和丰富的表现力著称，能够传达深刻的情感，是音乐艺术的重要形式。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=7maJOI3QMu0"
+                },
+                {
+                    title: "古筝的东方韵味",
+                    description: "古筝是中国传统乐器，音色清雅悠扬，具有浓厚的东方文化韵味，能够带来心灵的宁静与平和。",
+                    youtubeUrl: "https://www.youtube.com/watch?v=iFlTZFanAWw"
+                }
+            ],
+            breathe: [
+                "跟随圆圈呼吸：吸气4秒，屏息4秒，呼气4秒，重复循环。",
+                "深呼吸练习：用鼻子深吸气，用嘴巴慢慢呼气，感受腹部起伏。",
+                "4-7-8呼吸法：吸气4秒，屏息7秒，呼气8秒，重复4次。",
+                "正念呼吸：专注于呼吸，当思绪飘走时，温柔地拉回注意力。",
+                "腹式呼吸：将手放在腹部，感受吸气时腹部鼓起，呼气时收缩。",
+                "数息法：从1数到10，每次呼气数一个数，数完重新开始。",
+                "海浪呼吸：想象呼吸如海浪般起伏，自然而有节奏。",
+                "能量呼吸：吸气时想象吸入正能量，呼气时释放压力和紧张。",
+                "渐进式放松：配合呼吸，从脚趾到头顶逐步放松每个部位。",
+                "冥想呼吸：静坐，只关注呼吸，不做任何判断。"
+            ],
+            eye: [
+                "远眺20秒，然后看近处，重复3次。",
+                "眼球转动：顺时针转10圈，逆时针转10圈。",
+                "眨眼练习：快速眨眼20次，然后闭眼休息10秒。",
+                "远近焦点切换：看远处物体5秒，再看近处5秒，重复5次。",
+                "眼部按摩：用指腹轻轻按摩眼周穴位，每个穴位10秒。",
+                "8字眼球运动：用眼睛画横8字，左右各5次。",
+                "看窗外的绿色植物，持续30秒。",
+                "手掌捂眼：双手搓热后捂住眼睛，感受温暖，持续1分钟。",
+                "上下左右看：眼球向上下左右各看5秒，重复3次。",
+                "眼部拉伸：向上看5秒，向下看5秒，左右各看5秒。",
+                "闭眼休息：完全闭上眼睛，放松1分钟。",
+                "眼球对角线运动：看左上角5秒，再看右下角5秒，重复3次。",
+                "眼部热敷：想象温暖的光照在眼睛上，持续30秒。",
+                "快速眨眼：快速眨眼10次，然后闭眼休息。",
+                "眼球画圆：用眼睛画大圆，顺时针和逆时针各5次。"
+            ],
+            clean: [
+                "整理桌面：把桌面上的物品归位，保持整洁。",
+                "清理浏览器标签：关闭不需要的标签页，只保留重要的。",
+                "整理文件夹：把桌面或下载文件夹中的文件分类整理。",
+                "清理手机通知：清除所有未读通知，保持清爽。",
+                "整理书桌抽屉：把抽屉里的物品重新摆放整齐。",
+                "删除无用文件：清理电脑或手机中不需要的文件。",
+                "整理书架：把书籍按照类型或大小重新排列。",
+                "清理键盘：用软布轻轻擦拭键盘，清除灰尘。",
+                "整理衣柜：把散落的衣物挂好或叠好。",
+                "清理垃圾桶：倒掉垃圾，保持环境整洁。",
+                "整理充电线：把各种充电线整理好，避免缠绕。",
+                "清理浏览器历史：清除不需要的浏览记录。",
+                "整理照片：删除模糊或重复的照片。",
+                "清理冰箱：检查并清理过期或不需要的食物。",
+                "整理包包：把包里的物品重新整理，保持有序。",
+                "清理邮件：删除或归档不需要的邮件。",
+                "整理药箱：检查药品有效期，整理好药箱。",
+                "清理水杯：清洗水杯，保持干净。",
+                "整理抽屉：把抽屉里的物品分类整理。",
+                "清理电脑桌面：整理桌面图标，保持整洁。"
+            ],
+            puzzle: [
+                "拼图挑战：完成一个3x3的拼图游戏。",
+                "逻辑拼图：通过交换方块还原图片。",
+                "数字拼图：将打乱的数字方块按顺序排列。",
+                "图案拼图：将碎片拼成完整图案。",
+                "颜色拼图：按照颜色规律排列方块。"
+            ],
+            memory: [
+                "记忆挑战：记住并匹配相同的卡片。",
+                "数字记忆：记住一串数字并复述。",
+                "图案记忆：记住图案的位置并匹配。",
+                "颜色记忆：记住颜色序列并重复。",
+                "符号记忆：记住符号的位置并匹配。"
+            ]
+        };
+
+        // --- 1. 硬币掉落系统 (PVZ风格) ---
+        function spawnCoin() {
+            if (isTaskActive) return; // 任务中不掉钱
+
+            const coin = document.createElement('div');
+            coin.classList.add('falling-coin');
+            // 随机水平位置 (10% - 90%)
+            coin.style.left = (Math.random() * 80 + 10) + 'vw';
+            // 随机动画时长 (3s - 6s)
+            coin.style.animationDuration = (Math.random() * 3 + 3) + 's';
+            
+            coin.onclick = function() {
+                collectCoin(coin);
+            };
+
+            // 动画结束自动销毁
+            coin.addEventListener('animationend', () => {
+                if(coin.parentNode) coin.remove();
+            });
+
+            document.body.appendChild(coin);
+        }
+
+        function collectCoin(el) {
+            // 简单的飞向UI动画逻辑（简化版）
+            el.style.transition = 'all 0.5s';
+            el.style.top = '20px';
+            el.style.left = (window.innerWidth - 60) + 'px';
+            el.style.opacity = '0';
+            
+            setTimeout(() => {
+                coins++;
+                updateUI();
+                el.remove();
+                // 播放音效 (可选)
+            }, 500);
+        }
+
+        // 每 2-5 秒掉一个硬币
+        setInterval(() => {
+            if (!document.hidden) spawnCoin();
+        }, 3000);
+
+        function updateUI() {
+            coinDisplay.innerText = coins;
+            if (coins >= COST_TO_PLAY && !isSpinning) {
+                statusLight.classList.add('ready');
+                statusLight.classList.remove('error');
+            } else {
+                statusLight.classList.remove('ready');
+            }
+        }
+
+        // --- 2. 拉杆与老虎机逻辑 ---
+        function tryPullLever() {
+            if (isSpinning || isTaskActive) return;
+
+            if (coins < COST_TO_PLAY) {
+                // 余额不足反馈
+                statusLight.classList.add('error');
+                setTimeout(() => statusLight.classList.remove('error'), 500);
+                alert("硬币不足！请点击空中掉落的硬币收集 (需3枚)");
+                return;
+            }
+
+            // 扣费
+            coins -= COST_TO_PLAY;
+            updateUI();
+            
+            // 拉杆动画
+            leverArm.classList.add('pulled');
+            setTimeout(() => {
+                leverArm.classList.remove('pulled');
+                leverArm.classList.add('releasing');
+                setTimeout(() => leverArm.classList.remove('releasing'), 600);
+            }, 300);
+
+            startSpin();
+        }
+
+        function startSpin() {
+            isSpinning = true;
+            statusLight.classList.remove('ready');
+
+            // 确定结果
+            const targetTask = taskCategories[Math.floor(Math.random() * taskCategories.length)];
+            const icons = ["🍎", "🍇", "💎", "7️⃣", targetTask.icon];
+
+            // 启动滚轮
+            reels.forEach(reel => {
+                reel.classList.add('spinning');
+                reel.innerHTML = `<span>${icons[Math.floor(Math.random()*icons.length)]}</span>`;
+            });
+
+            // 分步停止 (心理暗示)
+            const stopDelay = [1000, 1800, 2600];
+            
+            stopDelay.forEach((delay, index) => {
+                setTimeout(() => {
+                    reels[index].classList.remove('spinning');
+                    reels[index].innerHTML = `<span>${targetTask.icon}</span>`;
+                    // 震动反馈
+                    if(navigator.vibrate) navigator.vibrate(30);
+                    
+                    if (index === 2) {
+                        setTimeout(() => launchTask(targetTask), 800);
+                    }
+                }, delay);
+            });
+        }
+
+        // --- 3. 任务生成引擎 ---
+        function launchTask(task) {
+            isSpinning = false;
+            isTaskActive = true;
+            currentTask = task; // 保存当前任务
+            taskModal.classList.add('active');
+            gameTitle.innerText = `${task.icon} ${task.name}`;
+            finishBtn.style.display = 'none'; // 先隐藏完成按钮
+            
+            gameContent.innerHTML = ''; // 清空旧内容
+
+            // 根据类型渲染不同的迷你互动，从知识库中随机选择内容
+            switch(task.id) {
+                case 'puzzle':
+                    initPuzzleGame();
+                    break;
+                case 'memory':
+                    initMemoryGame();
+                    break;
+                case 'breathe':
+                    // 从知识库中随机选择呼吸练习内容
+                    const breatheText = contentLib.breathe[Math.floor(Math.random() * contentLib.breathe.length)];
+                    initTimerTask(breatheText, 60);
+                    break;
+                case 'eye':
+                    // 从知识库中随机选择护眼内容
+                    const eyeText = contentLib.eye[Math.floor(Math.random() * contentLib.eye.length)];
+                    // 检查是否包含时间，如果有则使用initCheckTask，否则使用initTimerTask
+                    const eyeTime = extractTimeFromText(eyeText);
+                    if (eyeTime && eyeTime > 0) {
+                        initCheckTask(eyeText, 0);
+                    } else {
+                        initTimerTask(eyeText, 60);
+                    }
+                    break;
+                case 'sport':
+                    const sportText = contentLib.sport[Math.floor(Math.random() * contentLib.sport.length)];
+                    initCheckTask(sportText, 5); // 5秒倒计时后允许完成
+                    break;
+                case 'clean':
+                    const cleanText = contentLib.clean[Math.floor(Math.random() * contentLib.clean.length)];
+                    initCheckTask(cleanText, 5);
+                    break;
+                case 'read':
+                    const readText = contentLib.read[Math.floor(Math.random() * contentLib.read.length)];
+                    gameContent.innerHTML = `<div style="font-size:1.2rem; line-height:1.6; text-align:left; padding:10px;">${readText}</div>`;
+                    setTimeout(() => finishBtn.style.display = 'inline-block', 3000); // 3秒后才算读完
+                    break;
+                case 'music':
+                    const musicItem = contentLib.music[Math.floor(Math.random() * contentLib.music.length)];
+                    gameContent.innerHTML = `
+                        <div style="text-align: center; padding: 20px;">
+                            <h3 style="font-size: 1.8rem; color: #333; margin-bottom: 15px; font-weight: bold;">${musicItem.title}</h3>
+                            <div style="font-size: 1.1rem; line-height: 1.8; color: #555; text-align: left; padding: 20px; background: #f8f9fa; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                                ${musicItem.description}
+                            </div>
+                            <div style="margin-top: 25px;">
+                                <a href="${musicItem.youtubeUrl}" target="_blank" style="display: inline-block; background: #ff0000; color: white; padding: 15px 40px; border-radius: 30px; text-decoration: none; font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 15px rgba(255,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s;">
+                                    🎵 聆听音乐，休息一下
+                                </a>
+                            </div>
+                            <div style="margin-top: 20px; font-size: 0.9rem; color: #888;">
+                                点击上方按钮跳转到 YouTube 播放音乐
+                            </div>
+                        </div>
+                    `;
+                    // 添加悬停效果
+                    const musicLink = gameContent.querySelector('a');
+                    if (musicLink) {
+                        musicLink.onmouseover = function() {
+                            this.style.transform = 'scale(1.05)';
+                            this.style.boxShadow = '0 6px 20px rgba(255,0,0,0.4)';
+                        };
+                        musicLink.onmouseout = function() {
+                            this.style.transform = 'scale(1)';
+                            this.style.boxShadow = '0 4px 15px rgba(255,0,0,0.3)';
+                        };
+                    }
+                    setTimeout(() => finishBtn.style.display = 'inline-block', 3000); // 3秒后显示完成按钮
+                    break;
+            }
+        }
+
+        // --- 重开功能：免费重新抽奖 ---
+        function restartTask() {
+            if (!currentTask || isSpinning) return;
+            
+            // 清理倒计时器
+            if (activeTimerInterval) {
+                clearInterval(activeTimerInterval);
+                activeTimerInterval = null;
+            }
+            
+            // 关闭当前任务模态框
+            taskModal.classList.remove('active');
+            isTaskActive = false;
+            
+            // 不扣除金币，直接重新开始抽奖
+            // 拉杆动画
+            leverArm.classList.add('pulled');
+            setTimeout(() => {
+                leverArm.classList.remove('pulled');
+                leverArm.classList.add('releasing');
+                setTimeout(() => leverArm.classList.remove('releasing'), 600);
+            }, 300);
+
+            // 重新开始抽奖
+            startSpin();
+        }
+
+        // --- 工具函数：从文本中提取时间（秒数） ---
+        function extractTimeFromText(text) {
+            // 匹配各种时间格式：X秒、X分钟、X分、X min、X sec等
+            let totalSeconds = 0;
+            
+            // 检查分钟
+            const minuteMatches = text.match(/(\d+)\s*(分钟|分|min)/g);
+            if (minuteMatches) {
+                minuteMatches.forEach(match => {
+                    const minutes = parseInt(match.match(/\d+/)[0]);
+                    totalSeconds += minutes * 60;
+                });
+            }
+            
+            // 检查秒
+            const secondMatches = text.match(/(\d+)\s*(秒|sec)/g);
+            if (secondMatches) {
+                secondMatches.forEach(match => {
+                    const seconds = parseInt(match.match(/\d+/)[0]);
+                    totalSeconds += seconds;
+                });
+            }
+            
+            return totalSeconds > 0 ? totalSeconds : null;
+        }
+
+        // --- 3.1 迷你游戏实现 ---
+        
+        // 拼图 (简化版：点击交换两个图片块)
+        function initPuzzleGame() {
+            const imgUrl = `https://picsum.photos/240/240?random=${Date.now()}`;
+            const grid = document.createElement('div');
+            grid.className = 'puzzle-grid';
+            
+            // 生成9个块
+            let positions = [0,1,2,3,4,5,6,7,8];
+            // 随机打乱
+            positions.sort(() => Math.random() - 0.5);
+            
+            let selectedPiece = null;
+            let solvedCount = 0; // 简单判断，这里只要玩几步就给过，为了不让用户挫败
+
+            positions.forEach((pos, index) => {
+                const piece = document.createElement('div');
+                piece.className = 'puzzle-piece';
+                // 计算背景位置
+                const x = (pos % 3) * -80;
+                const y = Math.floor(pos / 3) * -80;
+                piece.style.backgroundImage = `url(${imgUrl})`;
+                piece.style.backgroundPosition = `${x}px ${y}px`;
+                piece.dataset.currentIdx = index; // 只是标记
+
+                piece.onclick = () => {
+                    if (!selectedPiece) {
+                        selectedPiece = piece;
+                        piece.style.opacity = '0.5';
+                    } else {
+                        // 交换背景
+                        const tempBg = selectedPiece.style.backgroundPosition;
+                        selectedPiece.style.backgroundPosition = piece.style.backgroundPosition;
+                        piece.style.backgroundPosition = tempBg;
+                        
+                        selectedPiece.style.opacity = '1';
+                        selectedPiece = null;
+                        
+                        // 只要交换了3次以上就允许完成 (降低难度，毕竟目的是多巴胺)
+                        solvedCount++;
+                        if (solvedCount >= 3) {
+                            finishBtn.style.display = 'inline-block';
+                            finishBtn.innerText = "拼得不错！(完成)";
+                        }
+                    }
+                };
+                grid.appendChild(piece);
+            });
+            
+            gameContent.appendChild(grid);
+            const hint = document.createElement('div');
+            hint.innerText = "点击两个方块交换位置，还原图片 (或尝试交换3次)";
+            hint.style.fontSize = "0.9rem";
+            hint.style.color = "#666";
+            hint.style.marginTop = "10px";
+            gameContent.appendChild(hint);
+        }
+
+        // 记忆翻牌 (4x2 简单版)
+        function initMemoryGame() {
+            const emojis = ['🐶', '🐱', '🐭', '🐹'];
+            let cards = [...emojis, ...emojis];
+            cards.sort(() => Math.random() - 0.5);
+            
+            const grid = document.createElement('div');
+            grid.className = 'memory-grid';
+            
+            let flippedCards = [];
+            let matchedPairs = 0;
+
+            cards.forEach(emoji => {
+                const card = document.createElement('div');
+                card.className = 'memory-card';
+                card.dataset.emoji = emoji;
+                
+                card.onclick = () => {
+                    if (card.classList.contains('flipped') || flippedCards.length >= 2) return;
+                    
+                    card.classList.add('flipped');
+                    card.innerText = emoji;
+                    flippedCards.push(card);
+
+                    if (flippedCards.length === 2) {
+                        setTimeout(() => {
+                            if (flippedCards[0].dataset.emoji === flippedCards[1].dataset.emoji) {
+                                flippedCards[0].classList.add('matched');
+                                flippedCards[1].classList.add('matched');
+                                matchedPairs++;
+                                if (matchedPairs === 4) {
+                                    finishBtn.style.display = 'inline-block';
+                                }
+                            } else {
+                                flippedCards[0].classList.remove('flipped');
+                                flippedCards[0].innerText = '';
+                                flippedCards[1].classList.remove('flipped');
+                                flippedCards[1].innerText = '';
+                            }
+                            flippedCards = [];
+                        }, 800);
+                    }
+                };
+                grid.appendChild(card);
+            });
+            gameContent.appendChild(grid);
+        }
+
+        // 计时任务
+        function initTimerTask(instruction, seconds) {
+            gameContent.innerHTML = `<div style="font-size:1.2rem; margin-bottom:20px;">${instruction}</div>`;
+            const timerDiv = document.createElement('div');
+            timerDiv.className = 'timer-circle';
+            timerDiv.innerText = seconds;
+            gameContent.appendChild(timerDiv);
+            
+            const startBtn = document.createElement('button');
+            startBtn.innerText = "开始计时";
+            startBtn.style.marginTop = "20px";
+            startBtn.onclick = () => {
+                startBtn.disabled = true;
+                timerDiv.style.animationPlayState = 'running';
+                let left = seconds;
+                const interval = setInterval(() => {
+                    left--;
+                    timerDiv.innerText = left;
+                    if (left <= 0) {
+                        clearInterval(interval);
+                        timerDiv.style.animationPlayState = 'paused';
+                        timerDiv.innerText = "✨";
+                        finishBtn.style.display = 'inline-block';
+                    }
+                }, 1000);
+            };
+            gameContent.appendChild(startBtn);
+        }
+
+        // 简单确认任务（自动检测时间并显示倒计时器）
+        function initCheckTask(text, delaySeconds) {
+            // 先尝试从文本中提取时间
+            const extractedTime = extractTimeFromText(text);
+            const taskTime = extractedTime || delaySeconds;
+            
+            // 显示任务文本
+            const textDiv = document.createElement('div');
+            textDiv.style.fontSize = '1.2rem';
+            textDiv.style.padding = '20px';
+            textDiv.style.marginBottom = '20px';
+            textDiv.innerText = text;
+            gameContent.appendChild(textDiv);
+            
+            // 如果检测到时间，显示倒计时器
+            if (extractedTime && extractedTime > 0) {
+                const timerContainer = document.createElement('div');
+                timerContainer.style.display = 'flex';
+                timerContainer.style.flexDirection = 'column';
+                timerContainer.style.alignItems = 'center';
+                timerContainer.style.marginTop = '20px';
+                
+                const timerLabel = document.createElement('div');
+                timerLabel.style.fontSize = '1rem';
+                timerLabel.style.color = '#666';
+                timerLabel.style.marginBottom = '10px';
+                timerLabel.innerText = '倒计时';
+                timerContainer.appendChild(timerLabel);
+                
+                const timerCircle = document.createElement('div');
+                timerCircle.className = 'timer-circle';
+                timerCircle.style.width = '120px';
+                timerCircle.style.height = '120px';
+                timerCircle.style.fontSize = '2rem';
+                timerCircle.style.fontWeight = 'bold';
+                timerCircle.style.color = 'var(--machine-color)';
+                timerCircle.innerText = extractedTime;
+                timerContainer.appendChild(timerCircle);
+                
+                const startBtn = document.createElement('button');
+                startBtn.innerText = '开始计时';
+                startBtn.style.marginTop = '20px';
+                startBtn.style.padding = '10px 30px';
+                startBtn.style.borderRadius = '10px';
+                startBtn.style.border = 'none';
+                startBtn.style.background = '#2ed573';
+                startBtn.style.color = 'white';
+                startBtn.style.fontSize = '1.1rem';
+                startBtn.style.cursor = 'pointer';
+                startBtn.style.transition = 'transform 0.2s';
+                
+                startBtn.onmouseover = () => startBtn.style.transform = 'scale(1.05)';
+                startBtn.onmouseout = () => startBtn.style.transform = 'scale(1)';
+                
+                startBtn.onclick = () => {
+                    startBtn.disabled = true;
+                    startBtn.style.opacity = '0.6';
+                    startBtn.style.cursor = 'not-allowed';
+                    timerCircle.style.animationPlayState = 'running';
+                    
+                    let left = extractedTime;
+                    // 清理之前的定时器（如果有）
+                    if (activeTimerInterval) {
+                        clearInterval(activeTimerInterval);
+                    }
+                    
+                    activeTimerInterval = setInterval(() => {
+                        left--;
+                        timerCircle.innerText = left;
+                        
+                        if (left <= 0) {
+                            clearInterval(activeTimerInterval);
+                            activeTimerInterval = null;
+                            timerCircle.style.animationPlayState = 'paused';
+                            timerCircle.innerText = '✨';
+                            timerCircle.style.color = '#2ed573';
+                            timerLabel.innerText = '完成！';
+                            finishBtn.style.display = 'inline-block';
+                        }
+                    }, 1000);
+                };
+                
+                timerContainer.appendChild(startBtn);
+                gameContent.appendChild(timerContainer);
+            } else {
+                // 如果没有检测到时间，使用原来的延迟方式
+                setTimeout(() => {
+                    finishBtn.style.display = 'inline-block';
+                }, delaySeconds * 1000);
+            }
+        }
+
+        // --- 4. 完成与反馈 ---
+        function closeTask() {
+            // 清理倒计时器
+            if (activeTimerInterval) {
+                clearInterval(activeTimerInterval);
+                activeTimerInterval = null;
+            }
+            
+            taskModal.classList.remove('active');
+            isTaskActive = false;
+            updateUI(); // 更新灯光状态
+            triggerConfetti();
+        }
+
+        function triggerConfetti() {
+            const count = 200;
+            const defaults = { origin: { y: 0.7 } };
+
+            function fire(particleRatio, opts) {
+                confetti(Object.assign({}, defaults, opts, {
+                    particleCount: Math.floor(count * particleRatio)
+                }));
+            }
+
+            fire(0.25, { spread: 26, startVelocity: 55 });
+            fire(0.2, { spread: 60 });
+            fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+            fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+            fire(0.1, { spread: 120, startVelocity: 45 });
+        }
+
+    </script>
+</body>
+</html>
