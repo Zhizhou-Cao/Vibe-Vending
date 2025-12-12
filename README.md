@@ -1,4 +1,4 @@
-Have a try through: [https://zhizhou-cao.github.io/Random-Refreshing/](https://zhizhou-cao.github.io/Vibe-Vending/)
+Have a try through: [Dopamine Vending Machine](https://zhizhou-cao.github.io/Vibe-Vending/)
 
 This project is made by Purely Vibe Coding.
 
