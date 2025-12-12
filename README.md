@@ -2,7 +2,7 @@ Have a try through: https://zhizhou-cao.github.io/Random-Refreshing/
 
 This project is made by Purely Vibe Coding.
 
-# 🎰 Dopamine Vending Machine (多巴胺贩卖机)
+# 🎰 Dopamine Vending Machine
 
 > **A Vibe Coding Experiment.** > 将无聊的碎片时间，转化为成就感获得瞬间。
 
